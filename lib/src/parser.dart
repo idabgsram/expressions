@@ -34,7 +34,7 @@ class ExpressionParser {
       });
 
   Parser<String> get escapedChar =>
-      (char(r'\') & anyOf("nrtbfv\"'")).pick(1).cast();
+      (char(r'\') & anyOf("nrtbfv\"'\\")).pick(1).cast();
 
   String unescape(String v) => v.replaceAllMapped(
       RegExp("\\\\[nrtbf\"']"),
@@ -107,6 +107,7 @@ class ExpressionParser {
   // binary precedence for quick reference:
   // see [Order of operations](http://en.wikipedia.org/wiki/Order_of_operations#Programming_language)
   static const Map<String, int> binaryOperations = {
+    '??': 0,
     '||': 1,
     '&&': 2,
     '|': 3,
@@ -124,7 +125,8 @@ class ExpressionParser {
     '-': 9,
     '*': 10,
     '/': 10,
-    '%': 10
+    '%': 10,
+    '~/': 10,
   };
 
   // This function is responsible for gobbling an individual expression,
@@ -135,7 +137,9 @@ class ExpressionParser {
       .trim();
 
   Parser<Expression> get binaryExpression =>
-      token.separatedBy(binaryOperation).map((l) {
+      token.plusSeparated(binaryOperation).map((sl) {
+        var l = sl.sequential.toList();
+
         var first = l[0];
         var stack = <dynamic>[first];
 
@@ -185,14 +189,16 @@ class ExpressionParser {
   // until the terminator character `)` or `]` is encountered.
   // e.g. `foo(bar, baz)`, `my_func()`, or `[bar, baz]`
   Parser<List<Expression>> get arguments => expression
-      .separatedBy(char(',').trim(), includeSeparators: false)
+      .plusSeparated(char(',').trim())
+      .map((sl) => sl.elements)
       .castList<Expression>()
       .optionalWith([]);
 
   Parser<Map<Expression, Expression>> get mapArguments =>
       (expression & char(':').trim() & expression)
           .map((l) => MapEntry<Expression, Expression>(l[0], l[2]))
-          .separatedBy(char(',').trim(), includeSeparators: false)
+          .plusSeparated(char(',').trim())
+          .map((sl) => sl.elements)
           .castList<MapEntry<Expression, Expression>>()
           .map((l) => Map.fromEntries(l))
           .optionalWith({});
@@ -238,11 +244,11 @@ class ExpressionParser {
       (char('[') & expression.trim() & char(']')).pick(1).cast();
 
   Parser<List<Expression>> get callArgument =>
-      (char('(') & arguments & char(')')).pick(1).cast();
+      (char('(') & arguments.trim() & char(')')).pick(1).cast();
 
   // Ternary expression: test ? consequent : alternate
   Parser<List<Expression>> get conditionArguments =>
-      (char('?').trim() & expression & char(':').trim())
+      (char('?').trim() & expression.trim() & char(':').trim())
           .pick(1)
           .seq(expression)
           .castList();

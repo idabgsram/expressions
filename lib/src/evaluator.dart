@@ -141,7 +141,7 @@ class ExpressionEvaluator {
   dynamic evalBinaryExpression(
       BinaryExpression expression, Map<String, dynamic> context) {
     var left = eval(expression.left, context);
-    var right = () => eval(expression.right, context);
+    right() => eval(expression.right, context);
     switch (expression.operator) {
       case '||':
         return left || right();
@@ -179,6 +179,10 @@ class ExpressionEvaluator {
         return left / right();
       case '%':
         return left % right();
+      case '~/':
+        return left ~/ right();
+      case '??':
+        return left ?? right();
     }
     throw ArgumentError(
         'Unknown operator ${expression.operator} in expression');
